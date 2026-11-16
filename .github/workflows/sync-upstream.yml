@@ -1,0 +1,34 @@
+name: Sync upstream
+
+# Every 12 hours, checks whether upstream main has a commit this fork has not built yet and, if so,
+# starts the Patched build workflow for it.
+
+on:
+  schedule:
+    - cron: '0 */12 * * *'
+  workflow_dispatch:
+
+permissions:
+  actions: write
+  contents: read
+
+env:
+  UPSTREAM: boykopovar/AnyPS5
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - name: Build upstream main if it is new
+        run: |
+          sha="$(gh api "repos/$UPSTREAM/commits/main" --jq .sha)"
+          tag="vmain-${sha:0:7}"
+          if gh release view "$tag" > /dev/null 2>&1; then
+            echo "Upstream main is at $sha and $tag already exists; nothing to do."; exit 0
+          fi
+          gh workflow run patched-build.yml -f "tag=$tag" -f "base=$sha"
+          echo "Started the Patched build of $tag from $UPSTREAM@$sha."
