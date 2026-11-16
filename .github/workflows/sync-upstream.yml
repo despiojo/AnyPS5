@@ -1,11 +1,11 @@
 name: Sync upstream
 
-# Every 12 hours, checks whether upstream main has a commit this fork has not built yet and, if so,
+# Every 24 hours, checks whether upstream main has a commit this fork has not built yet and, if so,
 # starts the Patched build workflow for it.
 
 on:
   schedule:
-    - cron: '0 */12 * * *'
+    - cron: '0 0 * * *'
   workflow_dispatch:
 
 permissions:
