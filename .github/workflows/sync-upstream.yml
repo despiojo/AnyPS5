@@ -30,5 +30,17 @@ jobs:
           if gh release view "$tag" > /dev/null 2>&1; then
             echo "Upstream main is at $sha and $tag already exists; nothing to do."; exit 0
           fi
-          gh workflow run patched-build.yml -f "tag=$tag" -f "base=$sha"
+          # The previous build is the newest release whose notes name an upstream base commit.
+          prev=""
+          for t in $(gh release list --limit 20 --json tagName --jq '.[].tagName'); do
+            prev="$(gh release view "$t" --json body --jq .body | grep -oE "$UPSTREAM@[0-9a-f]{40}" | head -1 | cut -d@ -f2 || true)"
+            [ -n "$prev" ] && break
+          done
+          if [ -n "$prev" ]; then
+            range="compare/$prev...$sha"
+          else
+            range="commits?sha=$sha&per_page=1"
+          fi
+          changes="$(gh api "repos/$UPSTREAM/$range" --jq '(.commits // .)[-50:][] | "- [`" + .sha[0:7] + "`](" + .html_url + ") " + (.commit.message | split("\n")[0])' | tail -n 50)"
+          gh workflow run patched-build.yml -f "tag=$tag" -f "base=$sha" -f "changes=$changes"
           echo "Started the Patched build of $tag from $UPSTREAM@$sha."

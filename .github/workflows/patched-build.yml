@@ -21,6 +21,11 @@ on:
         required: false
         default: ''
         type: string
+      changes:
+        description: Markdown list of the upstream commits that are new since the previous build, for the release notes
+        required: false
+        default: ''
+        type: string
 
 permissions:
   contents: read
@@ -34,6 +39,7 @@ env:
   TAG: ${{ inputs.tag }}
   BASE: ${{ inputs.base }}
   PRS: ${{ inputs.prs }}
+  CHANGES: ${{ inputs.changes }}
   # The toolchain of the upstream Release workflow.
   WINLIBS_RELEASE: 15.2.0posix-14.0.0-ucrt-r7
   WINLIBS_ZIP: winlibs-x86_64-posix-seh-gcc-15.2.0-mingw-w64ucrt-14.0.0-r7.zip
@@ -85,8 +91,11 @@ jobs:
             fi
             echo "- Merged: [#$number](https://github.com/$UPSTREAM/pull/$number) at $head_sha" >> "$notes"
           done
+          echo "- Tree built: $(git rev-parse 'HEAD^{tree}')" >> "$notes"
+          if [ -n "$CHANGES" ]; then
+            printf '\nNew upstream commits since the previous build:\n\n%s\n' "$CHANGES" >> "$notes"
+          fi
           {
-            echo "- Tree built: $(git rev-parse 'HEAD^{tree}')"
             echo
             echo "AnyPS5 is licensed under the GPL-2.0. The source of this build is the commits listed above, in the upstream repository."
           } >> "$notes"
