@@ -14,6 +14,8 @@ This is a fork of [AnyPS5](https://github.com/boykopovar/AnyPS5). The `main` bra
 
 It fetches the base from upstream, merges each pull request, builds the relinker and the libraries with the toolchain of the upstream Release workflow, and publishes a release here with `relinker-<tag>.exe` and `prx-windows-<tag>.zip`, the two files of an upstream release that a Windows PC needs. The release notes list the exact commits that were built.
 
+A build with no pull requests becomes the release marked as **Latest**, which is the one a program following this fork downloads. A build with pull requests merged in is published without that mark.
+
 A pull request that does not merge cleanly fails the run. Merging a pull request brings in every upstream commit it is based on, so a base older than that has no effect.
 
 ## What it is not

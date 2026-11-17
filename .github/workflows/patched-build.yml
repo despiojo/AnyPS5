@@ -150,5 +150,9 @@ jobs:
         run: |
           test -s "dist/relinker-$TAG.exe"
           test -s "dist/prx-windows-$TAG.zip"
+          # The release marked as latest is the one a program following this fork downloads: it is
+          # the newest build of upstream alone, never one with pull requests merged in.
+          latest=--latest
+          if [ -n "${PRS// /}" ]; then latest=--latest=false; fi
           gh release create "$TAG" "dist/relinker-$TAG.exe" "dist/prx-windows-$TAG.zip" \
-            --target "$GITHUB_SHA" --title "$TAG" --notes-file "$RUNNER_TEMP/notes.md"
+            --target "$GITHUB_SHA" --title "$TAG" --notes-file "$RUNNER_TEMP/notes.md" "$latest"
