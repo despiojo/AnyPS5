@@ -4,13 +4,14 @@ This is a fork of [AnyPS5](https://github.com/boykopovar/AnyPS5). The `main` bra
 
 ## What it does
 
-**Actions → Patched build → Run workflow** takes three inputs:
+**Actions → Patched build → Run workflow** takes four inputs:
 
 | Input | Meaning |
 |---|---|
 | `tag` | Name of the release to publish, such as `vmain-a6606d5-pr19326`. |
-| `base` | Upstream branch, tag or full commit SHA to start from. |
-| `prs` | Upstream pull request numbers to merge into it, in order, separated by spaces. May be empty. |
+| `repo` | GitHub repository (`owner/name`) to build from. Defaults to `boykopovar/AnyPS5`. |
+| `base` | Branch, tag or full commit SHA to start from. |
+| `prs` | Pull request numbers to merge into it, in order, separated by spaces. May be empty. |
 
 It fetches the base from upstream, merges each pull request, builds the relinker and the libraries with the toolchain of the upstream Release workflow, and publishes a release here with `relinker-<tag>.exe` and `prx-windows-<tag>.zip`, the two files of an upstream release that a Windows PC needs. The release notes list the exact commits that were built.
 

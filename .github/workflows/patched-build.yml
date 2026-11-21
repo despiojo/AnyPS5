@@ -1,8 +1,10 @@
 name: Patched build
 
-# Builds AnyPS5 for Windows from an upstream commit plus the upstream pull requests asked for, and
+# Builds AnyPS5 for Windows from an upstream or fork commit plus the pull requests asked for, and
 # publishes the relinker and the libraries as a release of this fork, under the asset names of an
 # upstream release. Nothing here is reviewed or tested by the AnyPS5 maintainers.
+
+run-name: Build ${{ inputs.tag }} (${{ inputs.repo || 'boykopovar/AnyPS5' }})
 
 on:
   workflow_dispatch:
@@ -11,18 +13,23 @@ on:
         description: Name of the release to publish, such as vmain-a6606d5-pr19326
         required: true
         type: string
+      repo:
+        description: GitHub repository (owner/name) to build from
+        required: false
+        default: boykopovar/AnyPS5
+        type: string
       base:
-        description: Upstream branch, tag or full commit SHA to start from
+        description: Branch, tag or full commit SHA to start from
         required: true
         default: main
         type: string
       prs:
-        description: Upstream pull request numbers to merge in, in order, separated by spaces
+        description: Pull request numbers to merge in, in order, separated by spaces
         required: false
         default: ''
         type: string
       changes:
-        description: Markdown list of the upstream commits that are new since the previous build, for the release notes
+        description: Markdown list of the commits that are new since the previous build, for the release notes
         required: false
         default: ''
         type: string
@@ -36,6 +43,7 @@ concurrency:
 
 env:
   UPSTREAM: boykopovar/AnyPS5
+  REPO: ${{ inputs.repo || 'boykopovar/AnyPS5' }}
   TAG: ${{ inputs.tag }}
   BASE: ${{ inputs.base }}
   PRS: ${{ inputs.prs }}
@@ -65,6 +73,9 @@ jobs:
           if [[ ! "$TAG" =~ ^v[0-9A-Za-z][0-9A-Za-z._-]*$ || "$TAG" == *. || "$TAG" == *..* ]]; then
             echo "::error::'$TAG' is not a usable release name: v, then letters, digits, dots, dashes and underscores"; exit 1
           fi
+          if [[ ! "$REPO" =~ ^[0-9A-Za-z][0-9A-Za-z-]*/[0-9A-Za-z._-]+$ || "$REPO" == *..* ]]; then
+            echo "::error::'$REPO' is not a GitHub repository (owner/name)"; exit 1
+          fi
           if [[ ! "$BASE" =~ ^[0-9A-Za-z][0-9A-Za-z._/-]*$ ]]; then echo "::error::'$BASE' is not a branch, tag or commit"; exit 1; fi
           if [[ ! "$PRS" =~ ^[0-9\ ]*$ ]]; then echo "::error::'$PRS' is not a list of pull request numbers"; exit 1; fi
           if gh release view "$TAG" > /dev/null 2>&1; then echo "::error::Release $TAG already exists; choose another name"; exit 1; fi
@@ -72,16 +83,16 @@ jobs:
       - name: Fetch the base and merge the pull requests
         run: |
           git init -q .
-          git remote add upstream "https://github.com/$UPSTREAM.git"
+          git remote add upstream "https://github.com/$REPO.git"
           git fetch --no-tags upstream "$BASE"
           git checkout -q --detach FETCH_HEAD
           base_sha="$(git rev-parse HEAD)"
           notes="$RUNNER_TEMP/notes.md"
           {
-            echo "Unofficial Windows build of [AnyPS5](https://github.com/$UPSTREAM), made by the Patched build workflow of this fork."
+            echo "Unofficial Windows build of [$REPO](https://github.com/$REPO), made by the Patched build workflow of this fork."
             echo "It is not reviewed, tested or supported by the AnyPS5 maintainers: the test suite is not run."
             echo
-            echo "- Base: \`$BASE\` at $UPSTREAM@$base_sha"
+            echo "- Base: \`$BASE\` at $REPO@$base_sha"
           } > "$notes"
           for number in $PRS; do
             git fetch --no-tags upstream "+refs/pull/$number/head:refs/remotes/pull/$number"
@@ -89,7 +100,7 @@ jobs:
             if ! git -c user.name=ci -c user.email=ci@localhost merge --no-ff --no-edit "refs/remotes/pull/$number"; then
               echo "::error::Pull request #$number does not merge cleanly into $BASE and the pull requests before it"; exit 1
             fi
-            echo "- Merged: [#$number](https://github.com/$UPSTREAM/pull/$number) at $head_sha" >> "$notes"
+            echo "- Merged: [#$number](https://github.com/$REPO/pull/$number) at $head_sha" >> "$notes"
           done
           echo "- Tree built: $(git rev-parse 'HEAD^{tree}')" >> "$notes"
           if [ -n "$CHANGES" ]; then
@@ -97,7 +108,7 @@ jobs:
           fi
           {
             echo
-            echo "AnyPS5 is licensed under the GPL-2.0. The source of this build is the commits listed above, in the upstream repository."
+            echo "AnyPS5 is licensed under the GPL-2.0. The source of this build is the commits listed above, in $REPO."
           } >> "$notes"
           cat "$notes"
 
@@ -151,8 +162,14 @@ jobs:
           test -s "dist/relinker-$TAG.exe"
           test -s "dist/prx-windows-$TAG.zip"
           # The release marked as latest is the one a program following this fork downloads: it is
-          # the newest build of upstream alone, never one with pull requests merged in.
+          # the newest build of upstream alone, never one from another fork or with pull requests merged in.
           latest=--latest
-          if [ -n "${PRS// /}" ]; then latest=--latest=false; fi
+          title="$TAG"
+          if [ "${REPO,,}" != "${UPSTREAM,,}" ]; then
+            latest=--latest=false
+            title="$TAG ($REPO)"
+          elif [ -n "${PRS// /}" ]; then
+            latest=--latest=false
+          fi
           gh release create "$TAG" "dist/relinker-$TAG.exe" "dist/prx-windows-$TAG.zip" \
-            --target "$GITHUB_SHA" --title "$TAG" --notes-file "$RUNNER_TEMP/notes.md" "$latest"
+            --target "$GITHUB_SHA" --title "$title" --notes-file "$RUNNER_TEMP/notes.md" "$latest"
